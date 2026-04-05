@@ -1,0 +1,26 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+
+# Large geodata files (downloaded from Viageo, not for version control)
+agrostatis/new-data/
+agrostatis/*.zip
+agrostatis/*.pdf
+
+# Extracted shapefiles
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.sbn
+*.sbx
+
+# Binary archives
+*.zip
+agrostatis-login.zip
+
+# Generated reports (regenerate with: python scripts/generate-ceo-report.py)
+AGROSTATIS_Progress_Report_April_2026.pdf

@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"/tmp/agr-data\")",
+      "Read(//tmp/**)",
+      "Bash(unzip -o \"/c/Users/Godfried Aboagye/agrostatis/agrostatis-platform/agrostatis/new-data/Surf-agr-538210-GUU7UK.zip\" -d .)",
+      "Bash(grep -E \"\\\\.shp$|\\\\.dbf$\")",
+      "Bash(node -e ':*)",
+      "Bash(cp:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node -e \"require\\('dotenv/config'\\); const pg = require\\('pg'\\); const pool = new pg.Pool\\({connectionString: process.env.DATABASE_URL}\\); pool.query\\('SELECT 1 AS ok'\\).then\\(r => { console.log\\('DB connected:', r.rows[0]\\); pool.end\\(\\); }\\).catch\\(e => { console.error\\('DB error:', e.message\\); pool.end\\(\\); }\\)\")",
+      "Bash(npx tsx:*)",
+      "Bash(node -e \"process.stdin.resume\\(\\);let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const r=JSON.parse\\(d\\);r.slice\\(0,5\\).forEach\\(x=>console.log\\(x.count+' '+x.utilisation_name+' \\('+x.total_ha+' ha\\) ['+x.category+']'\\)\\)}\\)\")",
+      "Bash(curl -s -b /tmp/cookies.txt http://localhost:3222/api/data-ingestion/datasets)",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(node -e \"process.stdin.resume\\(\\);let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const r=JSON.parse\\(d\\);console.log\\('Records:',r.record_count\\);console.log\\('Vineyard stats:',JSON.stringify\\(r.vineyard_stats\\)\\);console.log\\('Top 5 crops:'\\);r.crop_breakdown?.slice\\(0,5\\).forEach\\(c=>console.log\\(' '+c.count+' ['+c.utilisation_code+'] '+c.utilisation_name\\)\\)}\\)\" kill %1 wait)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill:*)",
+      "Bash(curl -s -X POST http://localhost:3222/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@swisssoil.com\",\"password\":\"password123\"}' -c /tmp/agr-cookies3.txt)",
+      "Bash(curl -s -o /tmp/tile-real.mvt -w \"%{http_code}\" -b /tmp/agr-cookies3.txt \"http://localhost:3222/api/tiles/agr-surfaces/12/2118/1451.mvt\")",
+      "Bash(curl -s -o /tmp/tile-terr.mvt -w \"%{http_code}\" -b /tmp/agr-cookies3.txt \"http://localhost:3222/api/tiles/terraced/13/4236/2903.mvt\")",
+      "Bash(wait)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(mkdir -p \"/tmp/gesreau\")",
+      "Bash(unzip -o \"/c/Users/Godfried Aboagye/agrostatis/agrostatis-platform/agrostatis/new-data/GESREAU-538210-KY93UE.zip\" -d \"/tmp/gesreau\")",
+      "Bash(grep -E \"\\\\.shp$\")",
+      "Bash(npx vite:*)"
+    ]
+  }
+}

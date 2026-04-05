@@ -1,0 +1,24 @@
+# Local development with PostGIS + H3
+# Usage: docker compose up -d
+version: "3.8"
+
+services:
+  db:
+    image: ghcr.io/zachasme/h3-pg/h3-pg:4.1.3-pg16-postgis3.4
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: agrostatis
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/setup-db.sql:/docker-entrypoint-initdb.d/02-setup.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:
