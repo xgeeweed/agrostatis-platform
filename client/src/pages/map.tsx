@@ -5,7 +5,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import {
   getStats, createBlockFromParcel, createVineyardBlock, generateHexagons,
   getParcelByNumber, getCommunes, getFarms, addSampleToCampaign, createSample,
-  getCampaigns, getHexMapData, getHexCoverage, getVineyardBlock,
+  getCampaigns, getHexMapData, getHexCoverage, getVineyardBlock, getExploitations,
 } from "@/lib/api";
 import { hexagonsToGeoJson } from "@/lib/h3-utils";
 import DeckOverlay from "@/components/map/DeckOverlay";
@@ -56,7 +56,7 @@ export default function MapPage() {
   const urlCampaignId = new URLSearchParams(window.location.search).get("campaignId") || "";
   const [activeCampaignId, setActiveCampaignId] = useState<string>(urlCampaignId);
   const [searchQuery, setSearchQuery] = useState("");
-  const [layers, setLayers] = useState({ parcels: true, satellite: false, labels: true, blocks: true, hexagons: true, farms: true, samples: true, agrSurfaces: false, terraced: false, watersheds: false });
+  const [layers, setLayers] = useState({ parcels: true, satellite: false, labels: true, blocks: true, hexagons: true, farms: true, samples: true, agrSurfaces: false, terraced: false, watersheds: false, exploitations: false });
 
   const [blockForm, setBlockForm] = useState({ name: "", code: "", variety: "", farmId: "" });
   const [sampleForm, setSampleForm] = useState({ sampleCode: "", depthCm: "30", sampleType: "soil" });
@@ -227,6 +227,15 @@ export default function MapPage() {
       m.addLayer({ id: "terraced-outline", type: "line", source: "terraced-source", "source-layer": "terraced",
         paint: { "line-color": "#9d174d", "line-width": 1.5 }, layout: { visibility: "none" } });
 
+      // Exploitation points (GeoJSON — loaded after map init)
+      m.addSource("exploitations-source", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      m.addLayer({ id: "exploitations-circle", type: "circle", source: "exploitations-source",
+        paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, 2, 14, 6], "circle-color": "#dc2626", "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 },
+        layout: { visibility: "none" } });
+      m.addLayer({ id: "exploitations-labels", type: "symbol", source: "exploitations-source", minzoom: 13,
+        layout: { "text-field": ["get", "exploitation_number"], "text-size": 9, "text-anchor": "top", "text-offset": [0, 0.8], visibility: "none" },
+        paint: { "text-color": "#dc2626", "text-halo-color": "#fff", "text-halo-width": 1.5 } });
+
       // Farm boundaries (GeoJSON — loaded after map init)
       m.addSource("farms-source", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       m.addLayer({ id: "farms-outline", type: "line", source: "farms-source",
@@ -292,6 +301,21 @@ export default function MapPage() {
       }).catch(() => {});
   }, [ready, farms]);
 
+  // Load exploitation points
+  useEffect(() => {
+    if (!ready || !mapRef.current) return;
+    getExploitations()
+      .then(data => {
+        const features = data.map((e: any) => ({
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: [e.lng, e.lat] },
+          properties: { exploitation_number: e.exploitation_number, reference_year: e.reference_year },
+        }));
+        const src = mapRef.current?.getSource("exploitations-source") as maplibregl.GeoJSONSource;
+        if (src) src.setData({ type: "FeatureCollection", features });
+      }).catch(() => {});
+  }, [ready]);
+
   // Draw complete handler
   const handleDrawComplete = useCallback((feature: GeoJSON.Feature, mode: DrawMode) => {
     if (mode === "block") {
@@ -317,6 +341,7 @@ export default function MapPage() {
       agrSurfaces: ["agr-surfaces-fill", "agr-surfaces-outline", "agr-surfaces-labels"],
       terraced: ["terraced-fill", "terraced-outline"],
       watersheds: ["watersheds-fill", "watersheds-outline"],
+      exploitations: ["exploitations-circle", "exploitations-labels"],
     };
     if (key === "satellite") { m.setLayoutProperty("satellite", "visibility", v); m.setLayoutProperty("osm-base", "visibility", newVal ? "none" : "visible"); }
     else { map[key]?.forEach(id => { if (m.getLayer(id)) m.setLayoutProperty(id, "visibility", v); }); }
@@ -449,6 +474,7 @@ export default function MapPage() {
                 { key: "agrSurfaces", label: "Agr. Land", color: "#7c3aed" },
                 { key: "terraced", label: "Terraces", color: "#be185d" },
                 { key: "watersheds", label: "Hydrology", color: "#0ea5e9" },
+                { key: "exploitations", label: "Farms (DGAV)", color: "#dc2626" },
                 { key: "satellite", label: "Satellite", color: "#64748b" },
                 { key: "labels", label: "Labels", color: "#1e3a2f" },
               ].map(l => {
