@@ -55,8 +55,10 @@ export default function MapPage() {
   const [activeBlock, setActiveBlock] = useState<any>(null);
   const [deckHexagons, setDeckHexagons] = useState<any[]>([]);
   const [hexColorMode, setHexColorMode] = useState<string>("coverage"); // coverage | pH | N_ppm | etc.
-  // Read campaignId from URL query params (from "Collect on Map" button)
-  const urlCampaignId = new URLSearchParams(window.location.search).get("campaignId") || "";
+  // Read query params from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlCampaignId = urlParams.get("campaignId") || "";
+  const urlBlockId = urlParams.get("blockId") || "";
   const [activeCampaignId, setActiveCampaignId] = useState<string>(urlCampaignId);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -315,6 +317,28 @@ export default function MapPage() {
         if (src && data?.features) src.setData(data);
       }).catch(() => {});
   }, [ready, farms]);
+
+  // Fly to block if blockId is in URL params (from farm detail "Map" link)
+  useEffect(() => {
+    if (!ready || !mapRef.current || !urlBlockId) return;
+    (async () => {
+      try {
+        const block = await getVineyardBlock(urlBlockId);
+        if (block.geojson) {
+          const coords = block.geojson.coordinates?.[0];
+          if (coords?.length) {
+            const lngs = coords.map((c: number[]) => c[0]);
+            const lats = coords.map((c: number[]) => c[1]);
+            const bounds = [[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]] as [[number, number], [number, number]];
+            mapRef.current?.fitBounds(bounds, { padding: 80, maxZoom: 17, speed: 1.5 });
+          }
+        }
+        setActiveBlock(block);
+        setPanel("block-detail");
+        loadBlockHexData(urlBlockId);
+      } catch {}
+    })();
+  }, [ready, urlBlockId]);
 
   // Load exploitation points
   useEffect(() => {

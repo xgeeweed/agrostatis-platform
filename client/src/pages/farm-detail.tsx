@@ -472,7 +472,7 @@ function BlocksTab({ farm }: any) {
           <div key={b.id} className="border rounded-xl p-4 hover:shadow-sm transition-shadow">
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-semibold">{b.name}</h4>
-              <Link href="/map" className="text-[10px] text-primary hover:underline flex items-center gap-0.5">
+              <Link href={`/map?blockId=${b.id}`} className="text-[10px] text-primary hover:underline flex items-center gap-0.5">
                 Map <ExternalLink className="w-2.5 h-2.5" />
               </Link>
             </div>
