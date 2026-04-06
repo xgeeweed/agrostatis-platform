@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 const VAUD_CENTER: [number, number] = [6.63, 46.56];
+const TITILER_URL = "http://w34xg2l85ct7pklqjb2rlr7d.136.119.107.35.sslip.io";
 
 const BASE_STYLE: maplibregl.StyleSpecification = {
   version: 8, name: "AGROSTATIS",
@@ -56,7 +57,7 @@ export default function MapPage() {
   const urlCampaignId = new URLSearchParams(window.location.search).get("campaignId") || "";
   const [activeCampaignId, setActiveCampaignId] = useState<string>(urlCampaignId);
   const [searchQuery, setSearchQuery] = useState("");
-  const [layers, setLayers] = useState({ parcels: true, satellite: false, labels: true, blocks: true, hexagons: true, farms: true, samples: true, agrSurfaces: false, terraced: false, watersheds: false, exploitations: false });
+  const [layers, setLayers] = useState({ parcels: true, satellite: false, labels: true, blocks: true, hexagons: true, farms: true, samples: true, agrSurfaces: false, terraced: false, watersheds: false, exploitations: false, dem: false, slope: false, cvsa: false });
 
   const [blockForm, setBlockForm] = useState({ name: "", code: "", variety: "", farmId: "" });
   const [sampleForm, setSampleForm] = useState({ sampleCode: "", depthCm: "30", sampleType: "soil" });
@@ -227,6 +228,16 @@ export default function MapPage() {
       m.addLayer({ id: "terraced-outline", type: "line", source: "terraced-source", "source-layer": "terraced",
         paint: { "line-color": "#9d174d", "line-width": 1.5 }, layout: { visibility: "none" } });
 
+      // Raster layers via TiTiler
+      m.addSource("dem-raster", { type: "raster", tiles: [`${TITILER_URL}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}?url=file:///data/cog/dem_1m.cog.tif&rescale=440,550&colormap_name=terrain&tilesize=256`], tileSize: 256, minzoom: 14, maxzoom: 17 });
+      m.addLayer({ id: "dem-layer", type: "raster", source: "dem-raster", paint: { "raster-opacity": 0.6 }, layout: { visibility: "none" }, minzoom: 14 });
+
+      m.addSource("slope-raster", { type: "raster", tiles: [`${TITILER_URL}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}?url=file:///data/cog/slope_1m.cog.tif&rescale=0,45&colormap_name=reds&tilesize=256`], tileSize: 256, minzoom: 14, maxzoom: 17 });
+      m.addLayer({ id: "slope-layer", type: "raster", source: "slope-raster", paint: { "raster-opacity": 0.6 }, layout: { visibility: "none" }, minzoom: 14 });
+
+      m.addSource("cvsa-raster", { type: "raster", tiles: [`${TITILER_URL}/cog/tiles/WebMercatorQuad/{z}/{x}/{y}?url=file:///data/cog/cvsa_soil_vegetation.cog.tif&colormap_name=greens&tilesize=256`], tileSize: 256, minzoom: 7, maxzoom: 13 });
+      m.addLayer({ id: "cvsa-layer", type: "raster", source: "cvsa-raster", paint: { "raster-opacity": 0.5 }, layout: { visibility: "none" }, minzoom: 7 });
+
       // Exploitation points (GeoJSON — loaded after map init)
       m.addSource("exploitations-source", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       m.addLayer({ id: "exploitations-circle", type: "circle", source: "exploitations-source",
@@ -342,6 +353,7 @@ export default function MapPage() {
       terraced: ["terraced-fill", "terraced-outline"],
       watersheds: ["watersheds-fill", "watersheds-outline"],
       exploitations: ["exploitations-circle", "exploitations-labels"],
+      dem: ["dem-layer"], slope: ["slope-layer"], cvsa: ["cvsa-layer"],
     };
     if (key === "satellite") { m.setLayoutProperty("satellite", "visibility", v); m.setLayoutProperty("osm-base", "visibility", newVal ? "none" : "visible"); }
     else { map[key]?.forEach(id => { if (m.getLayer(id)) m.setLayoutProperty(id, "visibility", v); }); }
@@ -475,6 +487,9 @@ export default function MapPage() {
                 { key: "terraced", label: "Terraces", color: "#be185d" },
                 { key: "watersheds", label: "Hydrology", color: "#0ea5e9" },
                 { key: "exploitations", label: "Farms (DGAV)", color: "#dc2626" },
+                { key: "dem", label: "DEM", color: "#059669" },
+                { key: "slope", label: "Slope", color: "#dc2626" },
+                { key: "cvsa", label: "Soil Cover", color: "#16a34a" },
                 { key: "satellite", label: "Satellite", color: "#64748b" },
                 { key: "labels", label: "Labels", color: "#1e3a2f" },
               ].map(l => {
