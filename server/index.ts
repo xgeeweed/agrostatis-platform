@@ -24,6 +24,7 @@ import { statsRoutes } from "./routes/stats.js";
 import { dataIngestionRoutes } from "./routes/data-ingestion.js";
 import { agriculturalSurfacesRoutes } from "./routes/agricultural-surfaces.js";
 import { hydrologyRoutes } from "./routes/hydrology.js";
+import { searchRoutes } from "./routes/search.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -73,6 +74,7 @@ async function buildApp() {
   await app.register(dataIngestionRoutes, { prefix: "/api/data-ingestion" });
   await app.register(agriculturalSurfacesRoutes, { prefix: "/api/agricultural-surfaces" });
   await app.register(hydrologyRoutes, { prefix: "/api/hydrology" });
+  await app.register(searchRoutes, { prefix: "/api/search" });
 
   // Production static files
   if (process.env.NODE_ENV === "production") {

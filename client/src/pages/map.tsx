@@ -4,8 +4,9 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
   getStats, createBlockFromParcel, createVineyardBlock, generateHexagons,
-  getParcelByNumber, getCommunes, getFarms, addSampleToCampaign, createSample,
+  getParcelByNumber, getFarms, addSampleToCampaign, createSample,
   getCampaigns, getHexMapData, getHexCoverage, getVineyardBlock, getExploitations,
+  searchAll,
 } from "@/lib/api";
 import { hexagonsToGeoJson } from "@/lib/h3-utils";
 import DeckOverlay from "@/components/map/DeckOverlay";
@@ -15,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   PenTool, MapPin, X, Search, Target, Eye, BarChart3, Building2,
+  Hexagon, FlaskConical, Map, Grape, Droplets, Leaf,
 } from "lucide-react";
 
 const VAUD_CENTER: [number, number] = [6.63, 46.56];
@@ -57,6 +59,9 @@ export default function MapPage() {
   const urlCampaignId = new URLSearchParams(window.location.search).get("campaignId") || "";
   const [activeCampaignId, setActiveCampaignId] = useState<string>(urlCampaignId);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [layers, setLayers] = useState({ parcels: true, satellite: false, labels: true, blocks: true, hexagons: true, farms: true, samples: true, agrSurfaces: false, terraced: false, watersheds: false, exploitations: false, dem: false, slope: false, cvsa: false });
 
   const [blockForm, setBlockForm] = useState({ name: "", code: "", variety: "", farmId: "" });
@@ -64,7 +69,6 @@ export default function MapPage() {
 
   const { data: stats } = useQuery({ queryKey: ["stats"], queryFn: getStats });
   const { data: farms } = useQuery({ queryKey: ["farms"], queryFn: getFarms });
-  const { data: communes } = useQuery({ queryKey: ["communes"], queryFn: getCommunes });
   const { data: activeCampaigns } = useQuery({
     queryKey: ["campaigns-active"],
     queryFn: () => getCampaigns({ status: "in_progress" }),
@@ -359,11 +363,26 @@ export default function MapPage() {
     else { map[key]?.forEach(id => { if (m.getLayer(id)) m.setLayoutProperty(id, "visibility", v); }); }
   }, [layers, ready]);
 
-  const flyToCommune = useCallback(async (commune: string) => {
-    const res = await fetch(`/api/parcels?commune=${encodeURIComponent(commune)}&limit=1`, { credentials: "include" });
-    const data = await res.json();
-    if (data.length && mapRef.current) mapRef.current.flyTo({ center: [data[0].lng, data[0].lat], zoom: 14, speed: 1.8 });
-    setPanel("layers");
+  // Debounced unified search
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (value.length < 2) { setSearchResults([]); setSearchLoading(false); return; }
+    setSearchLoading(true);
+    searchTimerRef.current = setTimeout(async () => {
+      try {
+        const data = await searchAll(value, 15);
+        setSearchResults(data.results || []);
+      } catch { setSearchResults([]); }
+      setSearchLoading(false);
+    }, 250);
+  }, []);
+
+  const handleSearchSelect = useCallback((result: any) => {
+    if (result.lng && result.lat && mapRef.current) {
+      mapRef.current.flyTo({ center: [result.lng, result.lat], zoom: result.zoom || 14, speed: 1.8 });
+    }
+    setSearchQuery(""); setSearchResults([]);
   }, []);
 
   const clearAll = () => {
@@ -372,8 +391,6 @@ export default function MapPage() {
     const src = mapRef.current?.getSource("hexagons-source") as maplibregl.GeoJSONSource;
     src?.setData({ type: "FeatureCollection", features: [] });
   };
-
-  const filteredCommunes = communes?.filter((c: any) => c.commune_name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
     <div className="relative h-full">
@@ -389,33 +406,57 @@ export default function MapPage() {
       <div className="absolute top-4 left-4 z-10 w-64 rounded-2xl overflow-hidden"
         style={{ background: "rgba(255,255,255,0.78)", backdropFilter: "blur(20px) saturate(180%)", WebkitBackdropFilter: "blur(20px) saturate(180%)", boxShadow: "0 8px 32px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)" }}>
 
-        {/* Search bar */}
+        {/* Unified Search */}
         <div className="p-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search commune..."
+            <input value={searchQuery} onChange={e => handleSearchChange(e.target.value)}
+              placeholder="Search parcels, farms, blocks, communes, crops..."
               className="w-full pl-10 pr-8 py-2.5 text-[13px] rounded-xl bg-white/80 border-0 shadow-sm ring-1 ring-black/[0.06] focus:ring-2 focus:ring-primary/30 focus:bg-white transition-all placeholder:text-slate-400" />
             {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-slate-100">
+              <button onClick={() => { setSearchQuery(""); setSearchResults([]); }} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-slate-100">
                 <X className="w-3.5 h-3.5 text-slate-400" />
               </button>
             )}
           </div>
-          {searchQuery && filteredCommunes && filteredCommunes.length > 0 && (
-            <div className="mt-2 rounded-xl overflow-hidden bg-white shadow-lg ring-1 ring-black/[0.06] max-h-40 overflow-auto">
-              {filteredCommunes.slice(0, 10).map((c: any) => (
-                <button key={c.commune_name} onClick={() => { flyToCommune(c.commune_name); setSearchQuery(""); }}
-                  className="w-full text-left px-3 py-2.5 text-xs hover:bg-primary/5 transition-colors flex items-center justify-between border-b border-slate-50 last:border-0">
-                  <span className="flex items-center gap-2">
-                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
-                      <MapPin className="w-3 h-3 text-primary" />
+          {searchQuery.length >= 2 && (
+            <div className="mt-2 rounded-xl overflow-hidden bg-white shadow-lg ring-1 ring-black/[0.06] max-h-[320px] overflow-auto">
+              {searchLoading && (
+                <div className="px-3 py-3 text-xs text-slate-400 text-center">Searching...</div>
+              )}
+              {!searchLoading && searchResults.length === 0 && (
+                <div className="px-3 py-3 text-xs text-slate-400 text-center">No results for "{searchQuery}"</div>
+              )}
+              {searchResults.map((r: any, idx: number) => {
+                const IconMap: Record<string, any> = {
+                  "map-pin": MapPin, "grape": Grape, "building": Building2, "hexagon": Hexagon,
+                  "map": Map, "flask": FlaskConical, "leaf": Leaf, "droplets": Droplets,
+                };
+                const Icon = IconMap[r.icon] || MapPin;
+                const colorMap: Record<string, string> = {
+                  commune: "bg-green-100 text-green-700", region: "bg-amber-100 text-amber-700",
+                  farm: "bg-purple-100 text-purple-700", block: "bg-orange-100 text-orange-700",
+                  parcel: "bg-emerald-100 text-emerald-700", sample: "bg-blue-100 text-blue-700",
+                  crop_type: "bg-lime-100 text-lime-700", exploitation: "bg-red-100 text-red-700",
+                  basin: "bg-cyan-100 text-cyan-700",
+                };
+                const badgeColor = colorMap[r.type] || "bg-slate-100 text-slate-600";
+                return (
+                  <button key={`${r.type}-${r.title}-${idx}`} onClick={() => handleSearchSelect(r)}
+                    className="w-full text-left px-3 py-2.5 hover:bg-primary/5 transition-colors flex items-center gap-2.5 border-b border-slate-50 last:border-0">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${badgeColor}`}>
+                      <Icon className="w-3.5 h-3.5" />
                     </div>
-                    <span className="font-medium text-slate-700">{c.commune_name}</span>
-                  </span>
-                  <span className="text-[10px] text-slate-400 tabular-nums">{c.parcel_count}</span>
-                </button>
-              ))}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-slate-800 truncate">{r.title}</p>
+                      <p className="text-[10px] text-slate-400 truncate">{r.subtitle}</p>
+                    </div>
+                    <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${badgeColor}`}>
+                      {r.type === "crop_type" ? "crop" : r.type}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>

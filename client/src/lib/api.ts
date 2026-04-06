@@ -198,6 +198,10 @@ export const assignFarmContact = (farmId: string, data: any) =>
 export const removeFarmContact = (farmId: string, id: string) =>
   fetch(`/api/farms/${farmId}/contacts/${id}`, { method: "DELETE", credentials: "include" });
 
+// ─── Search ─────────────────────────────────────────────────────────────
+export const searchAll = (q: string, limit = 20) =>
+  fetchJson<{ results: any[] }>(`/api/search?q=${encodeURIComponent(q)}&limit=${limit}`);
+
 // ─── Agricultural Surfaces ──────────────────────────────────────────────
 export const getAgrSurfaces = (params?: Record<string, any>) => {
   const qs = params ? "?" + new URLSearchParams(params).toString() : "";
